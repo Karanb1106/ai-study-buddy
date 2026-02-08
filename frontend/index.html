@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Study Buddy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header class="top">
+      <h1>AI Study Buddy</h1>
+      <p class="tag">Explain, summarize, and generate quizzes — fast and simple.</p>
+    </header>
+
+    <section class="work">
+      <div class="left">
+        <label for="input">Topic or notes</label>
+        <textarea id="input" rows="8" placeholder="Enter a topic or paste notes..."></textarea>
+
+        <div class="controls">
+          <button id="explain" class="btn primary">Explain</button>
+          <button id="summarize" class="btn">Summarize</button>
+          <button id="quiz" class="btn">Generate Quiz</button>
+          <button id="clear" class="btn ghost">Clear</button>
+        </div>
+      </div>
+
+      <aside class="right">
+        <div id="loading" class="loading hidden">Working…</div>
+        <div id="output" class="output"></div>
+      </aside>
+    </section>
+  </main>
+
+ 
+  <script src="app.js"></script>
+</body>
+</html>
