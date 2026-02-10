@@ -23,22 +23,39 @@ async function postJSON(url, body) {
   // Get backend URL from environment variable or use localhost for development
   const backendUrl = window.__BACKEND_URL__ || 'http://localhost:5173';
   const fullUrl = url.startsWith('http') ? url : `${backendUrl}${url}`;
-  const resp = await fetch(fullUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  // Safely handle empty or non-JSON responses
-  const text = await resp.text();
-  if (!text) {
-    throw new Error(`Empty response from server (status ${resp.status})`);
-  }
+  
+  console.log('📤 Sending request to:', fullUrl);
+  console.log('📦 Body:', body);
+  
   try {
-    return JSON.parse(text);
-  } catch (err) {
-    // Return an object shaped like an error so callers can handle it
-    return { error: `Invalid JSON response from server: ${text}` };
+    const resp = await fetch(fullUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    console.log('📥 Response status:', resp.status);
+
+    // Safely handle empty or non-JSON responses
+    const text = await resp.text();
+    if (!text) {
+      throw new Error(`Empty response from server (status ${resp.status})`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (err) {
+      // Return an object shaped like an error so callers can handle it
+      return { error: `Invalid JSON response from server: ${text}` };
+    }
+  } catch (fetchErr) {
+    console.error('❌ Fetch error:', fetchErr.message);
+    const errorMsg = `Backend Error: Cannot reach ${backendUrl}\n\n` +
+      `Possible causes:\n` +
+      `1. Backend not deployed on Vercel\n` +
+      `2. Backend URL is incorrect\n` +
+      `3. Backend server crashed or is not running\n\n` +
+      `Technical: ${fetchErr.message}`;
+    throw new Error(errorMsg);
   }
 }
 
@@ -146,4 +163,31 @@ document.getElementById('quiz').addEventListener('click', async () => {
 document.getElementById('clear').addEventListener('click', () => {
   inputEl.value = '';
   outputEl.innerHTML = '';
+});
+
+// Diagnostic: Test backend connectivity
+async function testBackend() {
+  const backendUrl = window.__BACKEND_URL__ || 'http://localhost:5173';
+  console.log('🔍 Testing backend at:', backendUrl);
+  try {
+    const resp = await fetch(`${backendUrl}/api/health`);
+    const data = await resp.json();
+    console.log('✅ Backend Response:', data);
+    return data;
+  } catch (e) {
+    console.error('❌ Backend unreachable:', e.message);
+    throw e;
+  }
+}
+
+// Auto-test backend on page load
+window.addEventListener('load', async () => {
+  try {
+    const health = await testBackend();
+    if (!health.hasGROQ_API_KEY) {
+      console.warn('⚠️ WARNING: Backend GROQ_API_KEY not configured!');
+    }
+  } catch (e) {
+    console.warn('⚠️ Backend connectivity check failed at startup');
+  }
 });

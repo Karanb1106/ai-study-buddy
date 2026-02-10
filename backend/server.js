@@ -129,6 +129,17 @@ async function callAI(prompt) {
 
 app.get('/', (req, res) => res.send('AI Study Buddy backend running'));
 
+app.get('/api/health', (req, res) => {
+	const hasApiKey = !!process.env.GROQ_API_KEY;
+	res.json({
+		status: 'ok',
+		backend: 'running',
+		timestamp: new Date().toISOString(),
+		hasGROQ_API_KEY: hasApiKey,
+		message: hasApiKey ? 'Backend ready' : 'WARNING: GROQ_API_KEY not configured'
+	});
+});
+
 app.post('/api/explain', async (req, res) => {
 	try {
 		const { topic, level } = req.body;
