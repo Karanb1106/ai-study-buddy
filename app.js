@@ -20,7 +20,9 @@ function makeCard(title, body, meta) {
 }
 
 async function postJSON(url, body) {
-  const fullUrl = url.startsWith('http') ? url : `http://localhost:5173${url}`;
+  // Get backend URL from environment variable or use localhost for development
+  const backendUrl = window.__BACKEND_URL__ || 'http://localhost:5173';
+  const fullUrl = url.startsWith('http') ? url : `${backendUrl}${url}`;
   const resp = await fetch(fullUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
