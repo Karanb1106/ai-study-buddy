@@ -1,193 +1,256 @@
-const inputEl = document.getElementById('input');
-const outputEl = document.getElementById('output');
-// level dropdown removed (College only) - no level selection needed
-const loadingEl = document.getElementById('loading');
+/* ================= DOM ELEMENTS ================= */
 
-function showLoading() { loadingEl.classList.remove('hidden'); }
-function hideLoading() { loadingEl.classList.add('hidden'); }
+const inputEl = document.getElementById("input");
+const outputEl = document.getElementById("output");
+const loadingEl = document.getElementById("loading");
 
-function makeCard(title, body, meta) {
-  const div = document.createElement('div');
-  div.className = 'card';
-  div.innerHTML = `<h3>${title}</h3>${meta?`<div class="meta">${meta}</div>`:''}<pre>${body}</pre>`;
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'btn';
-  copyBtn.style.marginTop = '8px';
-  copyBtn.textContent = 'Copy';
-  copyBtn.addEventListener('click', () => navigator.clipboard.writeText(body));
+const explainBtn = document.getElementById("explain");
+const summarizeBtn = document.getElementById("summarize");
+const quizBtn = document.getElementById("quiz");
+const clearBtn = document.getElementById("clear");
+
+
+/* ================= ACTIVE BUTTON ================= */
+
+function setActiveButton(activeBtn) {
+  [explainBtn, summarizeBtn, quizBtn].forEach(btn =>
+    btn.classList.remove("active")
+  );
+  activeBtn.classList.add("active");
+}
+
+setActiveButton(explainBtn);
+
+
+/* ================= LOADING ================= */
+
+function showLoading() {
+  loadingEl.classList.remove("hidden");
+}
+
+function hideLoading() {
+  loadingEl.classList.add("hidden");
+}
+
+
+/* ================= CARD MAKER ================= */
+
+function makeCard(title, htmlContent) {
+  const div = document.createElement("div");
+  div.className = "card";
+
+  div.innerHTML = `
+    <h3>${title}</h3>
+    ${htmlContent}
+  `;
+
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "btn copy-btn";
+  copyBtn.textContent = "Copy";
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(div.innerText);
+  };
+
   div.appendChild(copyBtn);
   return div;
 }
 
-async function postJSON(url, body) {
-  // Get backend URL from environment variable or use localhost for development
-  const backendUrl = window.__BACKEND_URL__ || 'http://localhost:5173';
-  const fullUrl = url.startsWith('http') ? url : `${backendUrl}${url}`;
-  
-  console.log('📤 Sending request to:', fullUrl);
-  console.log('📦 Body:', body);
-  
-  try {
-    const resp = await fetch(fullUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
 
-    console.log('📥 Response status:', resp.status);
+/* ================= API CALL ================= */
 
-    // Safely handle empty or non-JSON responses
-    const text = await resp.text();
-    if (!text) {
-      throw new Error(`Empty response from server (status ${resp.status})`);
-    }
-    try {
-      return JSON.parse(text);
-    } catch (err) {
-      // Return an object shaped like an error so callers can handle it
-      return { error: `Invalid JSON response from server: ${text}` };
-    }
-  } catch (fetchErr) {
-    console.error('❌ Fetch error:', fetchErr.message);
-    const errorMsg = `Backend Error: Cannot reach ${backendUrl}\n\n` +
-      `Possible causes:\n` +
-      `1. Backend not deployed on Vercel\n` +
-      `2. Backend URL is incorrect\n` +
-      `3. Backend server crashed or is not running\n\n` +
-      `Technical: ${fetchErr.message}`;
-    throw new Error(errorMsg);
+async function postJSON(endpoint, body) {
+  const backendUrl = window.__BACKEND_URL__;
+  const fullUrl = `${backendUrl}${endpoint}`;
+
+  const response = await fetch(fullUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Server error: ${response.status}`);
   }
+
+  return await response.json();
 }
 
-function showError(err) {
-  outputEl.innerHTML = '';
-  outputEl.appendChild(makeCard('Error', err || 'Unknown error'));
+function showError(message) {
+  outputEl.innerHTML = "";
+  outputEl.appendChild(
+    makeCard("Error", `<pre>${message}</pre>`)
+  );
 }
 
-document.getElementById('explain').addEventListener('click', async () => {
+
+/* ================= EXPLAIN ================= */
+
+explainBtn.addEventListener("click", async () => {
+  setActiveButton(explainBtn);
+
   const topic = inputEl.value.trim();
-  if (!topic) return alert('Enter a topic or notes');
-  outputEl.innerHTML = '';
+  if (!topic) return alert("Enter a topic");
+
+  outputEl.innerHTML = "";
   showLoading();
+
   try {
-    const res = await postJSON('/api/explain', { topic });
+    const res = await postJSON("/api/explain", { topic });
     hideLoading();
-    if (res.error) return showError(res.error);
-    outputEl.appendChild(makeCard(`Explanation — ${res.topic}`, res.result || JSON.stringify(res, null, 2)));
-  } catch (e) { hideLoading(); showError(e.message); }
+
+    outputEl.appendChild(
+      makeCard(
+        `Explanation — ${res.topic || topic}`,
+        `<pre>${res.result}</pre>`
+      )
+    );
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
+  }
 });
 
-document.getElementById('summarize').addEventListener('click', async () => {
+
+/* ================= SUMMARIZE ================= */
+
+summarizeBtn.addEventListener("click", async () => {
+  setActiveButton(summarizeBtn);
+
   const notes = inputEl.value.trim();
-  if (!notes) return alert('Paste notes to summarize');
-  outputEl.innerHTML = '';
-  showLoading();
-  try {
-    const res = await postJSON('/api/summarize', { notes, maxPoints: 4 });
-    hideLoading();
-    if (res.error) return showError(res.error);
-    outputEl.appendChild(makeCard('Summary', res.summary || JSON.stringify(res, null, 2)));
-  } catch (e) { hideLoading(); showError(e.message); }
-});
+  if (!notes) return alert("Paste notes");
 
-document.getElementById('quiz').addEventListener('click', async () => {
-  const source = inputEl.value.trim();
-  if (!source) return alert('Enter a topic or notes');
-  outputEl.innerHTML = '';
+  outputEl.innerHTML = "";
   showLoading();
-  try {
-    const res = await postJSON('/api/quiz', { source, count: 5 });
-    hideLoading();
-    if (res.error) return showError(res.error);
-    
-    const quizDiv = document.createElement('div');
-    quizDiv.className = 'card';
-    quizDiv.innerHTML = '<h3>Quiz - 5 MCQs</h3>';
-    
-    const quizContent = res.questions || JSON.stringify(res, null, 2);
-    const lines = quizContent.split('\n').filter(line => line.trim());
 
-    let currentQ = null;
-    let correctLabel = null;
-    lines.forEach((line) => {
-      if (line.match(/^Q\d+:\s*/)) {
-        if (currentQ) quizDiv.appendChild(currentQ);
-        currentQ = document.createElement('div');
-        currentQ.className = 'mcq-item';
-        const q = line.replace(/^Q\d+:\s*/, '');
-        currentQ.innerHTML = `<div class="question">${q}</div><div class="options"></div>`;
-      } else if (currentQ && line.match(/^[A-D]\)/)) {
-        const label = line.charAt(0).toUpperCase();
-        const text = line.slice(2).trim();
-        const opt = document.createElement('div');
-        opt.className = 'option';
-        opt.setAttribute('data-label', label);
-        opt.innerHTML = `<span class="opt-label">${label})</span> <span class="opt-text">${text}</span>`;
-        currentQ.querySelector('.options').appendChild(opt);
-      } else if (currentQ && line.toLowerCase().startsWith('correct answer')) {
-        const m = line.match(/([A-D])/i);
-        if (m) {
-          correctLabel = m[1].toUpperCase();
-          // highlight correct option
-          const opts = currentQ.querySelectorAll('.option');
-          opts.forEach(o => {
-            if (o.getAttribute('data-label') === correctLabel) {
-              o.classList.add('correct');
-            }
-          });
-          currentQ.innerHTML += `<div class="answer"><strong>Correct Answer:</strong> ${correctLabel}</div>`;
-        } else {
-          currentQ.innerHTML += `<div class="answer"><strong>Correct Answer:</strong> ${line.replace(/correct answer:\s*/i, '')}</div>`;
-        }
-      } else if (currentQ && line.toLowerCase().startsWith('detailed explanation')) {
-        currentQ.innerHTML += `<div class="solution"><strong>Detailed Explanation:</strong> ${line.replace(/detailed explanation:\s*/i, '')}</div>`;
-      } else if (currentQ && line.toLowerCase().startsWith('detailed explanation:')) {
-        currentQ.innerHTML += `<div class="solution"><strong>Detailed Explanation:</strong> ${line.replace(/detailed explanation:\s*/i, '')}</div>`;
-      } else if (currentQ && line.toLowerCase().startsWith('detailed explanation'.toLowerCase())) {
-        currentQ.innerHTML += `<div class="solution"><strong>Detailed Explanation:</strong> ${line}</div>`;
-      }
+  try {
+    const res = await postJSON("/api/summarize", {
+      notes,
+      maxPoints: 5,
     });
 
-    if (currentQ) quizDiv.appendChild(currentQ);
-    
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'btn';
-    copyBtn.textContent = 'Copy';
-    copyBtn.addEventListener('click', () => navigator.clipboard.writeText(quizContent));
-    quizDiv.appendChild(copyBtn);
-    
-    outputEl.appendChild(quizDiv);
-  } catch (e) { hideLoading(); showError(e.message); }
-});
+    hideLoading();
 
-document.getElementById('clear').addEventListener('click', () => {
-  inputEl.value = '';
-  outputEl.innerHTML = '';
-});
+    const points = res.summary
+      .split("\n")
+      .filter(line => line.trim())
+      .map(line => `<li>${line}</li>`)
+      .join("");
 
-// Diagnostic: Test backend connectivity
-async function testBackend() {
-  const backendUrl = window.__BACKEND_URL__ || 'http://localhost:5173';
-  console.log('🔍 Testing backend at:', backendUrl);
-  try {
-    const resp = await fetch(`${backendUrl}/api/health`);
-    const data = await resp.json();
-    console.log('✅ Backend Response:', data);
-    return data;
-  } catch (e) {
-    console.error('❌ Backend unreachable:', e.message);
-    throw e;
+    outputEl.appendChild(
+      makeCard("Summary", `<ul class="summary-list">${points}</ul>`)
+    );
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
   }
-}
+});
 
-// Auto-test backend on page load
-window.addEventListener('load', async () => {
+
+/* ================= QUIZ (FINAL CLEAN VERSION) ================= */
+
+quizBtn.addEventListener("click", async () => {
+  setActiveButton(quizBtn);
+
+  const source = inputEl.value.trim();
+  if (!source) return alert("Enter topic");
+
+  outputEl.innerHTML = "";
+  showLoading();
+
   try {
-    const health = await testBackend();
-    if (!health.hasGROQ_API_KEY) {
-      console.warn('⚠️ WARNING: Backend GROQ_API_KEY not configured!');
-    }
-  } catch (e) {
-    console.warn('⚠️ Backend connectivity check failed at startup');
+    const res = await postJSON("/api/quiz", {
+      source,
+      count: 5,
+    });
+
+    hideLoading();
+
+    // Split questions using Q1:, Q2:, etc.
+    const questionBlocks = res.questions
+      .split(/Q\d+:/)
+      .filter(q => q.trim());
+
+    questionBlocks.slice(0, 5).forEach((block, index) => {
+
+      const lines = block.split("\n").filter(l => l.trim());
+
+      let questionText = lines[0];
+      let options = [];
+      let correctAnswer = "";
+      let explanation = "";
+
+      let optionCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Take ONLY first 4 options
+        if (/^[A-D]\)/.test(line) && optionCount < 4) {
+          options.push(line);
+          optionCount++;
+          continue;
+        }
+
+        // Capture Correct Answer
+        if (line.startsWith("Correct Answer:")) {
+          correctAnswer = line;
+          continue;
+        }
+
+        // Capture Detailed Explanation only
+        if (line.startsWith("Detailed Explanation:")) {
+          explanation = line.replace("Detailed Explanation:", "").trim();
+          continue;
+        }
+
+        // Stop when "Why others are wrong" appears
+        if (line.startsWith("Why others are wrong")) {
+          break;
+        }
+      }
+
+      const container = document.createElement("div");
+      container.className = "card quiz-card";
+
+      container.innerHTML = `
+        <h3>Question ${index + 1}</h3>
+
+        <p class="question"><strong>${questionText}</strong></p>
+
+        <div class="options">
+          ${options.map(opt => `<div class="option">${opt}</div>`).join("")}
+        </div>
+
+        <p class="correct">${correctAnswer}</p>
+
+        <p class="explanation">${explanation}</p>
+      `;
+
+      outputEl.appendChild(container);
+    });
+
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
+  }
+});
+
+
+/* ================= CLEAR ================= */
+
+clearBtn.addEventListener("click", () => {
+  inputEl.value = "";
+  outputEl.innerHTML = "";
+});
+
+
+/* ================= BACKEND CHECK ================= */
+
+window.addEventListener("load", async () => {
+  try {
+    await fetch(`${window.__BACKEND_URL__}/api/health`);
+    console.log("✅ Backend Connected");
+  } catch {
+    console.warn("⚠ Backend unreachable");
   }
 });

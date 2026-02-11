@@ -1,19 +1,23 @@
 // Environment configuration
-// This file sets the backend URL based on the deployment environment
 
-(function() {
-  const isProduction = !window.location.hostname.includes('localhost');
-  
-  if (isProduction) {
-    // Production: Use the backend Vercel URL
-    // This should be injected as <meta> tag in index.html during build
-    // OR set via Vercel environment variable injected into window by build script
-    const metaBackendUrl = document.querySelector('meta[name="backend-url"]');
-    window.__BACKEND_URL__ = metaBackendUrl ? metaBackendUrl.getAttribute('content') : 'https://ai-study-buddy-backend.vercel.app';
+(function () {
+  const isLocal =
+    window.location.hostname.includes("localhost") ||
+    window.location.hostname.includes("127.0.0.1");
+
+  if (isLocal) {
+    // 🔧 Local development
+    window.__BACKEND_URL__ = "http://localhost:5173";
   } else {
-    // Local development
-    window.__BACKEND_URL__ = 'http://localhost:5173';
+    // 🚀 Production (Vercel)
+    const metaBackendUrl = document.querySelector(
+      'meta[name="backend-url"]'
+    );
+
+    window.__BACKEND_URL__ = metaBackendUrl
+      ? metaBackendUrl.getAttribute("content")
+      : "https://ai-study-buddy-backend-7k9m2p5j.vercel.app";
   }
-  
-  console.log('🔌 Backend URL:', window.__BACKEND_URL__);
+
+  console.log("🔌 Backend URL:", window.__BACKEND_URL__);
 })();
